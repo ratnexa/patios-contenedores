@@ -57,7 +57,7 @@ boxplot(dataset2$kpi2_tiempoEnPatio)d
 boxplot(dataset$kpi2_tiempoEfectivo)
 
 yardOp <- get_query({
-  'select * from yard_operation yo where stopwatch_seconds is not NULL and date(appointment_dateTime) >= "2020-11-01"'
+  'select * from yard_operation yo where stopwatch_seconds is not NULL and date(appointment_dateTime) >= "2020-10-01"'
 })
 
 yardOp$validation <- as.POSIXlt(yardOp$dateTimeStatus4) - seconds(yardOp$stopwatch_seconds)
@@ -90,8 +90,20 @@ yardOp$dateTimeStatus3[5]
 yardOp$unload_containerDateTime[5]
 yardOp$dateTimeStatus4[5]
 
-
 yardOp$load_containerDateTime[4]
 yardOp$dateTimeStatus4[4]
 yardOp$codigoTurno
 yardOp$load_containerInspectedDateTime[4]
+
+yardOp$totalTime <- ifelse(
+  yardOp$operationType == "EXPO",
+  difftime(as.POSIXlt(yardOp$dateTimeStatus3), as.POSIXlt(yardOp$dateTimeStatus2), units = "mins") + 
+    abs(difftime(as.POSIXlt(yardOp$load_containerInspectedDateTime), as.POSIXlt(yardOp$dateTimeStatus4), units = "mins")),
+  difftime(as.POSIXlt(yardOp$dateTimeStatus3), as.POSIXlt(yardOp$dateTimeStatus2), units = "mins") + 
+    difftime(as.POSIXlt(yardOp$dateTimeStatus4), as.POSIXlt(yardOp$unload_containerDateTime), units = "mins")
+)
+
+expo <- yardOp %>% filter(operationType == "EXPO")
+impo <- yardOp %>% filter(operationType == "IMPO")
+
+hist(impo$totalTime)
