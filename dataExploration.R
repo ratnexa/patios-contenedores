@@ -1,6 +1,8 @@
 library(RMySQL)
 library(dplyr)
 library(lubridate)
+library(ggplot2)
+library(gridExtra)
 source("config.R")
 
 get_query <- function(query){
@@ -25,6 +27,10 @@ dbDisconnect(mydb)
 
 dataset <- get_query(
  'select * from operation_list where yardId = 1'
+)
+
+clients <- get_query(
+  'select * from client'
 )
 
 unique(dataset$transportadorName)
@@ -82,7 +88,7 @@ yardOp$load_containerDateTime
 yardOp$statusId
 table(yardOp$operationType)
 yardOp$appointment_dateTime[5]
-yardOp$dateTimeStatus2[5]
+yardOp$dateTimeStatus2[5] #Waiting in line
 yardOp$approvedInYardDateTime[5]
 yardOp$yardEntryAuthorizedDateTime[5]
 yardOp$dateTimeStatus3[5]
@@ -103,7 +109,73 @@ yardOp$totalTime <- ifelse(
     difftime(as.POSIXlt(yardOp$dateTimeStatus4), as.POSIXlt(yardOp$unload_containerDateTime), units = "mins")
 )
 
+yardOp$waitingTime <- as.numeric(abs(difftime(
+  yardOp$appointment_dateTime,
+  yardOp$dateTimeStatus2,
+  units = "mins"
+)))
+
+
+
 expo <- yardOp %>% filter(operationType == "EXPO")
+outExpo <- boxplot(expo$totalTime)$out
+expo <- expo[-which(expo$totalTime %in% outExpo),]
 impo <- yardOp %>% filter(operationType == "IMPO")
 
+#Unload time
+expoPlot <- expo %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = "#33FFF6",
+                                          col = I("black"))+ 
+  labs(title="EXPO")
+
+impoPlot <- impo %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = "#B8FF33",
+                                          col = I("black"))+ 
+  labs(title="IMPO")
 hist(impo$totalTime)
+
+
+impo %>% filter(linerCode == "SUD") %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = I("blue"),
+                                          col = I("red"))
+
+hist(impo$waitingTime)
+
+hist(expo$totalTime)
+
+a <- impo %>% filter(linerCode == "SEA") %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = "#B8FF33",
+                                          col = I("black"))+ 
+  labs(title="SEA")
+
+b <- impo %>% filter(linerCode == "MSK") %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = "#B8FF33",
+                                          col = I("black")) + 
+  labs(title="MSK")
+
+c <- impo %>% filter(linerCode == "PIL") %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = "#B8FF33",
+                                          col = I("black"))+ 
+  labs(title="PIL")
+
+d <- impo %>% filter(linerCode == "SUD") %>% 
+  ggplot(aes(totalTime)) + geom_histogram(fill = "#B8FF33",
+                                          col = I("black")) + 
+  labs(title="SUD")
+
+grid.arrange(a,b,c,d, nrow = 2, ncol = 2)
+
+hist(expo$waitingTime)
+
+table(expo$linerCode)
+
+
+table(yardOp$appointmentRequestedName)
+sort(table(yardOp$truckerId))
+sort(table(yardOp$truckId))
+
+yardOp <- yardOp %>% left_join(clients, 
+                     by = c("clientId" = "id"))
+
+sort(table(yardOp$name))
+
