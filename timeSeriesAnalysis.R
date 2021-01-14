@@ -42,6 +42,7 @@ group by
 
 resumeData$day <- weekdays(as.Date(resumeData$appointment_date))
 resumeData$month <- month(as.Date(resumeData$appointment_date))
+resumeData$year <- year(as.Date(resumeData$appointment_date))
 #selectedLinerCode <- "EVE"
 #resumeData <- resumeData %>% filter(linerCode == selectedLinerCode)
 generalTs <- resumeData %>% group_by(appointment_date, day, yardId) %>% 
@@ -75,8 +76,12 @@ repoResume <- resumeData %>%
   group_by(day) %>% summarise(avg_quantity = mean(quantity, na.rm = T))
 
 test2 <- resumeData %>% filter(yardId == 1) %>% 
-  group_by(month, operationType) %>% 
+  group_by(year, month, operationType) %>% 
   summarise(total = sum(quantity, na.rm = T))
+
+test2 <- test2 %>% spread(operationType, total) %>% replace(is.na(.), 0)
+test2$total <- cumsum(test2$IMPO - test2$EXPO - test2$REPO)
+test2$delta <- test2$IMPO - test2$EXPO - test2$REPO
 
 sum((resumeData %>% filter(operationType == "IMPO", yardId == 1))$quantity)
 
