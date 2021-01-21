@@ -87,7 +87,7 @@ server <- function(input, output, session){
   values <- reactiveValues(df = NULL)
   valuesTs <- reactiveValues(df = NULL)
   histData <- resumeData %>%
-    group_by(appointment_date, yardId, operationType, linerCode, c_type, month, day) %>%
+    group_by(appointment_date, yardId, operationType, linerCode, c_type, year, month, day) %>%
     summarise(total_quantity = sum(quantity, na.rm = T))
   
   tsData <- resumeData %>% 
@@ -105,6 +105,9 @@ server <- function(input, output, session){
     if(input$month != 'All'){histData <- histData %>% filter(month == input$month)}
     if(input$day != 'All'){histData <- histData %>% filter(day == input$day)}
     if(input$container != 'All'){histData <- histData %>% filter(c_type == input$container)}
+    histData <- histData %>%
+      group_by(appointment_date) %>%
+      summarise(total_quantity = sum(total_quantity, na.rm = T))
     values$df <- histData
   })
 
