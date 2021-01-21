@@ -33,12 +33,14 @@ timeData <- get_query({
 	, MIN(d.`dateTime`) as firstDocDate
 	, MAX(d.`dateTime`) as lastDocDate
 	, yo.appointment_dateTime
+	, min(yodc.checkedDateTime) as firstRevDocDate
+	, max(yodc.checkedDateTime) as lastRevDocDate
 	, yo.dateTimeStatus2 #Arrived the yard
 	#, yo.containerInspectionStartDateTime 
-	, yo.containerInspectionEndDateTime #Inspection Finish
 	, yo.yardEntryAuthorizedDateTime 
 	, yo.yardEntryAuthorizedUserId
 	, yo.dateTimeStatus3 #Enters the yard
+	, yo.containerInspectionEndDateTime #Inspection Finish
 	, if(yo.operationType like 'IMPO', yo.unload_containerDateTime, yo.load_containerDateTime) as containerTime
 	, yo.unload_containerDateTime 
 	, yo.load_containerDateTime 
@@ -50,9 +52,10 @@ left join trucker t2 on t2.id = yo.truckerId
 left join transportador t3 on t3.transportadorId = yo.transportadorId 
 left join container c2 on c2.id = yo.containerId
 left join document d on d.yardOperationId = yo.id
+left join yard_operation_document_checklist yodc on yodc.operationId = yo.id
 inner join contenedores_tipos ct on ct.codigo = if(yo.operationType like 'IMPO', c2.cType, yo.requiredContainer_type)
 where 
-	yo.appointmentRequested_dateTime >= DATE_SUB(DATE(NOW()), interval 1 month)
+	yo.appointment_dateTime >= DATE_SUB(DATE(NOW()), interval 1 month)
 	and yo.cancelled_appointment != 1
 group by yo.id"
 })
