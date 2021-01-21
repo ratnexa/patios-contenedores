@@ -16,30 +16,45 @@ get_query <- function(query){
 }
 
 timeData <- get_query({
-  'select 
+  "select 
 	yo.id
 	, yo.truckerId 
 	, t2.phone as trucker_phone
 	, yo.transportadorId 
 	, t3.name as transporter_name
 	, yo.linerCode 
-	, yo.containerId 
-	, yo.yardId 
-	, yo.appointmentRequested_dateTime #When the appointment is requested
-	, yo.appointment_dateTime 
+	, yo.containerId
+	, ct.nombre as c_type
+	, if(yo.operationType like 'IMPO', c2.cSize, yo.requiredContainer_size) as c_size
+	, yo.yardId
 	, yo.operationType 
-	, yo.containerInspectionStartDateTime 
+	, yo.appointmentRequested_dateTime #When the appointment is requested
+	, count(d.id) as docQuantity
+	, MIN(d.`dateTime`) as firstDocDate
+	, MAX(d.`dateTime`) as lastDocDate
+	, yo.appointment_dateTime
+	, yo.dateTimeStatus2 #Arrived the yard
+	#, yo.containerInspectionStartDateTime 
+	, yo.containerInspectionEndDateTime #Inspection Finish
 	, yo.yardEntryAuthorizedDateTime 
+	, yo.yardEntryAuthorizedUserId
 	, yo.dateTimeStatus3 #Enters the yard
-	, yo.dateTimeStatus4 #Gets out of the yard
+	, if(yo.operationType like 'IMPO', yo.unload_containerDateTime, yo.load_containerDateTime) as containerTime
 	, yo.unload_containerDateTime 
 	, yo.load_containerDateTime 
 	, yo.load_containerInspectedDateTime 
 	, yo.cita_anulada_dateTime 
+	, yo.dateTimeStatus4 #Gets out of the yard
 from yard_operation yo 
 left join trucker t2 on t2.id = yo.truckerId 
 left join transportador t3 on t3.transportadorId = yo.transportadorId 
-where yo.appointmentRequested_dateTime >= DATE_SUB(DATE(NOW()), interval 3 month)'
+left join container c2 on c2.id = yo.containerId
+left join document d on d.yardOperationId = yo.id
+inner join contenedores_tipos ct on ct.codigo = if(yo.operationType like 'IMPO', c2.cType, yo.requiredContainer_type)
+where 
+	yo.appointmentRequested_dateTime >= DATE_SUB(DATE(NOW()), interval 1 month)
+	and yo.cancelled_appointment != 1
+group by yo.id"
 })
 
 timeData$appointmentRequested_dateTime <- as.POSIXct(timeData$appointmentRequested_dateTime)
