@@ -113,8 +113,23 @@ timeResumeIMPO <- {timeData %>% filter(operationType == "IMPO") %>%
   )
 }
 
+
+hist(as.numeric(timeResumeIMPO$wait_time_inspection))
+boxplot(as.numeric(timeResumeIMPO$wait_time_inspection))
+hist(as.numeric(timeResumeIMPO$wait_time_yard_entry))
+boxplot(as.numeric(timeResumeIMPO$wait_time_yard_entry))
+hist(as.numeric(timeResumeIMPO$wait_time_begin_op))
+boxplot(as.numeric(timeResumeIMPO$wait_time_begin_op))
+hist(as.numeric(timeResumeIMPO$service_time_operation))
+boxplot(as.numeric(timeResumeIMPO$service_time_operation))
+hist(as.numeric(timeResumeIMPO$leave_yard))
+boxplot(as.numeric(timeResumeIMPO$leave_yard))
+hist(as.numeric(timeResumeIMPO$upload_doc_time))
+boxplot(as.numeric(timeResumeIMPO$upload_doc_time))
+
 timeResumeREST <- timeData %>% filter(operationType %in% c("EXPO", "REPO")) %>%
   mutate(
+    operation_type = operationType,
     wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, dateTimeStatus2, units = "mins"),
     wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
     service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
@@ -123,6 +138,7 @@ timeResumeREST <- timeData %>% filter(operationType %in% c("EXPO", "REPO")) %>%
     time_to_appointment = difftime(appointment_dateTime, dateTimeStatus2, units = "mins")
   ) %>%
   select(
+    operation_type,
     trucker_phone,
     transporter_name,
     linerCode,
@@ -137,6 +153,86 @@ timeResumeREST <- timeData %>% filter(operationType %in% c("EXPO", "REPO")) %>%
     leave_yard,
     upload_doc_time,
     time_to_appointment
+  )
+
+hist(as.numeric(timeResumeREST$wait_time_yard_entry))
+boxplot(as.numeric(timeResumeREST$wait_time_yard_entry))
+hist(as.numeric(timeResumeREST$wait_time_begin_op))
+boxplot(as.numeric(timeResumeREST$wait_time_begin_op))
+hist(as.numeric(timeResumeREST$service_time_operation))
+boxplot(as.numeric(timeResumeREST$service_time_operation))
+hist(as.numeric(timeResumeREST$leave_yard))
+boxplot(as.numeric(timeResumeREST$leave_yard))
+hist(as.numeric(timeResumeREST$upload_doc_time))
+boxplot(as.numeric(timeResumeREST$upload_doc_time))
+
+
+
+# Review avgs -------------------------------------------------------------
+resumeIMPO <- list()
+resumeIMPO[[1]] <- timeResumeIMPO %>% group_by(c_type) %>% 
+  summarise(
+    avg_wait_time_inspection = mean(abs(wait_time_inspection), na.rm = T),
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T),
+  )
+
+resumeIMPO[[2]] <- timeResumeIMPO %>% group_by(linerCode) %>% 
+  summarise(
+    avg_wait_time_inspection = mean(abs(wait_time_inspection), na.rm = T),
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T),
+  )
+
+resumeIMPO[[3]] <- timeResumeIMPO %>% group_by(yardId) %>% 
+  summarise(
+    avg_wait_time_inspection = mean(abs(wait_time_inspection), na.rm = T),
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T),
+  )
+
+resumeIMPO[[4]] <- timeResumeIMPO %>% group_by(transporter_name) %>% 
+  summarise(
+    avg_wait_time_inspection = mean(abs(wait_time_inspection), na.rm = T),
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T),
+    obs = n()
+  )
+
+resumeIMPO[[5]] <- timeResumeIMPO %>% group_by(trucker_phone) %>% 
+  summarise(
+    avg_wait_time_inspection = mean(abs(wait_time_inspection), na.rm = T),
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T),
+    obs = n()
+  )
+
+resumeIMPO[[6]] <- timeResumeIMPO %>% group_by(c_size) %>% 
+  summarise(
+    avg_wait_time_inspection = mean(abs(wait_time_inspection), na.rm = T),
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T)
+  )
+
+resumeEXPO <- list()
+resumeEXPO[[1]] <- timeResumeREST %>% filter(operation_type == "EXPO") %>% group_by(c_type) %>% 
+  summarise(
+    avg_wait_time_yard_entry = mean(abs(wait_time_yard_entry), na.rm = T),
+    avg_wait_time_begin_op = mean(abs(wait_time_begin_op), na.rm = T),
+    avg_service_time_operation = mean(abs(service_time_operation), na.rm = T),
+    avg_leave_yard = mean(abs(leave_yard), na.rm = T),
   )
 
 unique(timeResumeIMPO$service_time_inspection)
