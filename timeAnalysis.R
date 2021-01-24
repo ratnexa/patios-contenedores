@@ -4,6 +4,7 @@ library(ggplot2)
 library(RMySQL)
 library(lubridate)
 library(dplyr)
+source("config.R")
 get_query <- function(query){
   mydb <- RMySQL::dbConnect(MySQL(), 
                             user=patiosName, 
@@ -36,12 +37,11 @@ timeData <- get_query({
 	, min(yodc.checkedDateTime) as firstRevDocDate
 	, max(yodc.checkedDateTime) as lastRevDocDate
 	, yo.dateTimeStatus2 #Arrived the yard
-	#, yo.containerInspectionStartDateTime 
+	, yo.containerInspectionStartDateTime 
 	, yo.yardEntryAuthorizedDateTime 
 	, yo.yardEntryAuthorizedUserId
 	, yo.dateTimeStatus3 #Enters the yard
-	, yo.containerInspectionEndDateTime #Inspection Finish
-	, if(yo.operationType like 'IMPO', yo.unload_containerDateTime, yo.load_containerDateTime) as containerTime
+	, if(yo.operationType like 'IMPO', yo.unload_containerDateTime, IFNULL(yo.load_containerDateTime, yo.load_containerInspectedDateTime)) as operationContainerTime
 	, yo.unload_containerDateTime 
 	, yo.load_containerDateTime 
 	, yo.load_containerInspectedDateTime 
@@ -60,5 +60,83 @@ where
 group by yo.id"
 })
 
-timeData$appointmentRequested_dateTime <- as.POSIXct(timeData$appointmentRequested_dateTime)
-timeData$appointment_dateTime <- astimeData$appointment_dateTime 
+
+# Transform columns into dates --------------------------------------------
+{
+  timeData$appointmentRequested_dateTime <- as.POSIXct(timeData$appointmentRequested_dateTime)
+  timeData$appointment_dateTime <- as.POSIXct(timeData$appointment_dateTime)
+  timeData$firstDocDate <- as.POSIXct(timeData$firstDocDate)
+  timeData$lastDocDate <- as.POSIXct(timeData$lastDocDate)
+  timeData$firstRevDocDate <- as.POSIXct(timeData$firstRevDocDate)
+  timeData$lastRevDocDate <- as.POSIXct(timeData$lastRevDocDate)
+  timeData$dateTimeStatus2 <- ifelse(
+    is.na(timeData$dateTimeStatus2),
+    as.character(timeData$appointment_dateTime),
+    timeData$dateTimeStatus2
+  )
+  timeData$dateTimeStatus2 <- as.POSIXct(timeData$dateTimeStatus2)
+  timeData$containerInspectionStartDateTime <- as.POSIXct(timeData$containerInspectionStartDateTime)
+  timeData$yardEntryAuthorizedDateTime <- as.POSIXct(timeData$yardEntryAuthorizedDateTime)
+  timeData$dateTimeStatus3 <- as.POSIXct(timeData$dateTimeStatus3)
+  timeData$operationContainerTime <- as.POSIXct(timeData$operationContainerTime)
+  timeData$cita_anulada_dateTime <- as.POSIXct(timeData$cita_anulada_dateTime)
+  timeData$dateTimeStatus4 <- as.POSIXct(timeData$dateTimeStatus4)
+  
+}
+
+timeResumeIMPO <- {timeData %>% filter(operationType == "IMPO") %>%
+  mutate(
+    wait_time_inspection = difftime(containerInspectionStartDateTime, dateTimeStatus2, units = "mins"),
+    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, containerInspectionStartDateTime, units = "mins"),
+    wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
+    service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
+    leave_yard = difftime(dateTimeStatus4, operationContainerTime, units = "mins"),
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    time_to_appointment = difftime(appointment_dateTime, dateTimeStatus2, units = "mins")
+  ) %>%
+  select(
+    trucker_phone,
+    transporter_name,
+    linerCode,
+    containerId,
+    c_type,
+    c_size,
+    yardId,
+    docQuantity,
+    wait_time_inspection,
+    wait_time_yard_entry,
+    wait_time_begin_op,
+    service_time_operation,
+    leave_yard,
+    upload_doc_time,
+    time_to_appointment
+  )
+}
+
+timeResumeREST <- timeData %>% filter(operationType %in% c("EXPO", "REPO")) %>%
+  mutate(
+    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, dateTimeStatus2, units = "mins"),
+    wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
+    service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
+    leave_yard = difftime(dateTimeStatus4, operationContainerTime, units = "mins"),
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    time_to_appointment = difftime(appointment_dateTime, dateTimeStatus2, units = "mins")
+  ) %>%
+  select(
+    trucker_phone,
+    transporter_name,
+    linerCode,
+    containerId,
+    c_type,
+    c_size,
+    yardId,
+    docQuantity,
+    wait_time_yard_entry,
+    wait_time_begin_op,
+    service_time_operation,
+    leave_yard,
+    upload_doc_time,
+    time_to_appointment
+  )
+
+unique(timeResumeIMPO$service_time_inspection)
