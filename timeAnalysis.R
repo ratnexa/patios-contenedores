@@ -37,13 +37,12 @@ timeData <- get_query({
 	, min(yodc.checkedDateTime) as firstRevDocDate
 	, max(yodc.checkedDateTime) as lastRevDocDate
 	, yo.dateTimeStatus2 #Arrived the yard
-	, yo.containerInspectionStartDateTime 
-	, yo.yardEntryAuthorizedDateTime 
+	, yo.containerInspectionStartDateTime
+	, yo.approvedInYardDateTime #Queue
+	, yo.yardEntryAuthorizedDateTime
 	, yo.yardEntryAuthorizedUserId
 	, yo.dateTimeStatus3 #Enters the yard
 	, if(yo.operationType like 'IMPO', yo.unload_containerDateTime, IFNULL(yo.load_containerDateTime, yo.load_containerInspectedDateTime)) as operationContainerTime
-	, yo.unload_containerDateTime 
-	, yo.load_containerDateTime 
 	, yo.load_containerInspectedDateTime 
 	, yo.cita_anulada_dateTime 
 	, yo.dateTimeStatus4 #Gets out of the yard
