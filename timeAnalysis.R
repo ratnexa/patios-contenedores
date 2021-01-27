@@ -91,10 +91,26 @@ timeResumeIMPO <- {timeData %>% filter(operationType == "IMPO", yardId != "3", i
     diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
     diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins"),
     diff_time_to_arrival = difftime(dateTimeStatus2, appointment_dateTime, units = "mins"),
-    wait_time_in_queue = difftime(approvedInYardDateTime, dateTimeStatus2, units = "mins"),
-    wait_time_inspection = difftime(containerInspectionEndDateTime, approvedInYardDateTime, units = "mins"),
-    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, containerInspectionEndDateTime, units = "mins"),
-    wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
+    wait_time_in_queue = ifelse(
+      approvedInYardDateTime < containerInspectionEndDateTime,
+      difftime(approvedInYardDateTime, dateTimeStatus2, units = "mins"),
+      difftime(containerInspectionEndDateTime, dateTimeStatus2, units = "mins") 
+    ),
+    wait_time_inspection = ifelse(
+      approvedInYardDateTime < containerInspectionEndDateTime,
+      difftime(containerInspectionEndDateTime, approvedInYardDateTime, units = "mins"),
+      NA
+    ),
+    wait_time_yard_entry = ifelse(
+      yardEntryAuthorizedDateTime > containerInspectionEndDateTime,
+      difftime(yardEntryAuthorizedDateTime, containerInspectionEndDateTime, units = "mins"),
+      NA
+    ),
+    wait_time_begin_op = ifelse(
+      yardEntryAuthorizedDateTime > containerInspectionEndDateTime,
+      difftime(dateTimeStatus3, containerInspectionEndDateTime, units = "mins"),
+      difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins")
+    ),
     service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
     leave_yard = difftime(dateTimeStatus4, operationContainerTime, units = "mins")
   ) %>%
@@ -130,12 +146,46 @@ timeResumeEXPO <- {timeData %>% filter(operationType == "EXPO", yardId != "3", i
     diff_time_to_arrival = difftime(dateTimeStatus2, appointment_dateTime, units = "mins"),
     wait_time_in_queue = difftime(approvedInYardDateTime, dateTimeStatus2, units = "mins"),
     wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, approvedInYardDateTime, units = "mins"),
-    wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
-    service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
-    wait_time_inspection = difftime(load_containerInspectedDateTime, operationContainerTime, units = "mins"),
-    leave_yard = difftime(dateTimeStatus4, load_containerInspectedDateTime, units = "mins")
+    inspection_operation_status = ifelse(
+      load_containerInspectedDateTime < dateTimeStatus3,
+      1,
+      ifelse(
+        load_containerInspectedDateTime < operationContainerTime,
+        2,
+        3
+      )
+    ),
+    wait_time_begin_op = ifelse(
+      inspection_operation_status == 1,
+      difftime(dateTimeStatus3, load_containerInspectedDateTime, units = "mins"),
+      difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins")
+    ),
+    wait_time_inspection = ifelse(
+     inspection_operation_status == 1,
+     difftime(load_containerInspectedDateTime, yardEntryAuthorizedDateTime, units = "mins"),
+     ifelse(
+       inspection_operation_status == 2,
+       difftime(load_containerInspectedDateTime, dateTimeStatus3, units = "mins"),
+       difftime(load_containerInspectedDateTime, operationContainerTime, units = "mins")
+     )
+    ),
+    service_time_operation = ifelse(
+      inspection_operation_status == 1,
+      difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
+      ifelse(
+        inspection_operation_status == 2,
+        difftime(operationContainerTime, load_containerInspectedDateTime, units = "mins"),
+        difftime(operationContainerTime, dateTimeStatus3, units = "mins")
+      )
+    ),
+    leave_yard = ifelse(
+      inspection_operation_status != 3,
+      difftime(dateTimeStatus4, operationContainerTime, units = "mins"),
+      difftime(dateTimeStatus4, load_containerInspectedDateTime, units = "mins")
+    )
   ) %>%
     select(
+      id,
       operation_type,
       trucker_phone,
       transporter_name,
@@ -261,11 +311,14 @@ timeResumeCancelledREPO <- {timeData %>% filter(operationType == "REPO", yardId 
     )
 }
 
-timeResumeIMPOErrors <- timeResumeIMPO %>% filter(wait_time_inspection < 0)
+colnames(timeResumeEXPO)
 
-temp <- 100
-timeResumeIMPOErrors[temp,]
-timeData %>% filter(id == timeResumeIMPOErrors[temp,1])
+timeResumeEXPOErrors <- timeResumeEXPO %>% filter(leave_yard < 0)
+
+temp <- 1
+timeResumeEXPOErrors[temp,]
+timeData %>% filter(id == timeResumeEXPOErrors[temp,1])
+timeData %>% filter(operationType == "EXPO", load_containerInspectedDateTime > dateTimeStatus4)
 #hist(as.numeric(timeResumeIMPO$wait_time_inspection))
 #boxplot(as.numeric(timeResumeIMPO$wait_time_inspection))
 # hist(as.numeric(timeResumeIMPO$wait_time_yard_entry))
