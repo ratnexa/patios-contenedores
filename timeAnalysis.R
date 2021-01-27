@@ -38,6 +38,7 @@ timeData <- get_query({
 	, max(yodc.checkedDateTime) as lastRevDocDate
 	, yo.dateTimeStatus2 #Arrived the yard
 	, yo.containerInspectionStartDateTime
+	, yo.containerInspectionEndDateTime
 	, yo.approvedInYardDateTime #Queue
 	, yo.yardEntryAuthorizedDateTime
 	, yo.yardEntryAuthorizedUserId
@@ -68,32 +69,37 @@ group by yo.id"
   timeData$lastDocDate <- as.POSIXct(timeData$lastDocDate)
   timeData$firstRevDocDate <- as.POSIXct(timeData$firstRevDocDate)
   timeData$lastRevDocDate <- as.POSIXct(timeData$lastRevDocDate)
-  timeData$dateTimeStatus2 <- ifelse(
-    is.na(timeData$dateTimeStatus2),
-    as.character(timeData$appointment_dateTime),
-    timeData$dateTimeStatus2
-  )
+  # timeData$dateTimeStatus2 <- ifelse(
+  #   is.na(timeData$dateTimeStatus2),
+  #   as.character(timeData$appointment_dateTime),
+  #   timeData$dateTimeStatus2
+  # )
   timeData$dateTimeStatus2 <- as.POSIXct(timeData$dateTimeStatus2)
   timeData$containerInspectionStartDateTime <- as.POSIXct(timeData$containerInspectionStartDateTime)
+  timeData$approvedInYardDateTime <- as.POSIXct(timeData$approvedInYardDateTime)
   timeData$yardEntryAuthorizedDateTime <- as.POSIXct(timeData$yardEntryAuthorizedDateTime)
   timeData$dateTimeStatus3 <- as.POSIXct(timeData$dateTimeStatus3)
   timeData$operationContainerTime <- as.POSIXct(timeData$operationContainerTime)
-  timeData$cita_anulada_dateTime <- as.POSIXct(timeData$cita_anulada_dateTime)
   timeData$dateTimeStatus4 <- as.POSIXct(timeData$dateTimeStatus4)
-  
+  timeData$load_containerInspectedDateTime <- as.POSIXct(timeData$load_containerInspectedDateTime)
+  timeData$dateTimeStatus4 <- as.POSIXct(timeData$dateTimeStatus4)
 }
 
-timeResumeIMPO <- {timeData %>% filter(operationType == "IMPO") %>%
+timeResumeIMPO <- {timeData %>% filter(operationType == "IMPO", yardId != "3", is.na(dateTimeStatus2) == FALSE) %>%
   mutate(
-    wait_time_inspection = difftime(containerInspectionStartDateTime, dateTimeStatus2, units = "mins"),
-    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, containerInspectionStartDateTime, units = "mins"),
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
+    diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins"),
+    diff_time_to_arrival = difftime(dateTimeStatus2, appointment_dateTime, units = "mins"),
+    wait_time_in_queue = difftime(approvedInYardDateTime, dateTimeStatus2, units = "mins"),
+    wait_time_inspection = difftime(containerInspectionEndDateTime, approvedInYardDateTime, units = "mins"),
+    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, containerInspectionEndDateTime, units = "mins"),
     wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
     service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
-    leave_yard = difftime(dateTimeStatus4, operationContainerTime, units = "mins"),
-    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
-    time_to_appointment = difftime(appointment_dateTime, dateTimeStatus2, units = "mins")
+    leave_yard = difftime(dateTimeStatus4, operationContainerTime, units = "mins")
   ) %>%
   select(
+    id,
     trucker_phone,
     transporter_name,
     linerCode,
@@ -102,70 +108,187 @@ timeResumeIMPO <- {timeData %>% filter(operationType == "IMPO") %>%
     c_size,
     yardId,
     docQuantity,
+    upload_doc_time,
+    diff_upload_doc_arrival,
+    diff_time_to_appointment,
+    diff_time_to_arrival,
+    wait_time_in_queue,
     wait_time_inspection,
     wait_time_yard_entry,
     wait_time_begin_op,
     service_time_operation,
-    leave_yard,
-    upload_doc_time,
-    time_to_appointment
+    leave_yard
   )
 }
 
-
-hist(as.numeric(timeResumeIMPO$wait_time_inspection))
-boxplot(as.numeric(timeResumeIMPO$wait_time_inspection))
-hist(as.numeric(timeResumeIMPO$wait_time_yard_entry))
-boxplot(as.numeric(timeResumeIMPO$wait_time_yard_entry))
-hist(as.numeric(timeResumeIMPO$wait_time_begin_op))
-boxplot(as.numeric(timeResumeIMPO$wait_time_begin_op))
-hist(as.numeric(timeResumeIMPO$service_time_operation))
-boxplot(as.numeric(timeResumeIMPO$service_time_operation))
-hist(as.numeric(timeResumeIMPO$leave_yard))
-boxplot(as.numeric(timeResumeIMPO$leave_yard))
-hist(as.numeric(timeResumeIMPO$upload_doc_time))
-boxplot(as.numeric(timeResumeIMPO$upload_doc_time))
-
-timeResumeREST <- timeData %>% filter(operationType %in% c("EXPO", "REPO")) %>%
+timeResumeEXPO <- {timeData %>% filter(operationType == "EXPO", yardId != "3", is.na(dateTimeStatus2) == FALSE) %>%
   mutate(
     operation_type = operationType,
-    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, dateTimeStatus2, units = "mins"),
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
+    diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins"),
+    diff_time_to_arrival = difftime(dateTimeStatus2, appointment_dateTime, units = "mins"),
+    wait_time_in_queue = difftime(approvedInYardDateTime, dateTimeStatus2, units = "mins"),
+    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, approvedInYardDateTime, units = "mins"),
     wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
     service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
-    leave_yard = difftime(dateTimeStatus4, operationContainerTime, units = "mins"),
-    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
-    time_to_appointment = difftime(appointment_dateTime, dateTimeStatus2, units = "mins")
+    wait_time_inspection = difftime(load_containerInspectedDateTime, operationContainerTime, units = "mins"),
+    leave_yard = difftime(dateTimeStatus4, load_containerInspectedDateTime, units = "mins")
   ) %>%
-  select(
-    operation_type,
-    trucker_phone,
-    transporter_name,
-    linerCode,
-    containerId,
-    c_type,
-    c_size,
-    yardId,
-    docQuantity,
-    wait_time_yard_entry,
-    wait_time_begin_op,
-    service_time_operation,
-    leave_yard,
-    upload_doc_time,
-    time_to_appointment
-  )
+    select(
+      operation_type,
+      trucker_phone,
+      transporter_name,
+      linerCode,
+      containerId,
+      c_type,
+      c_size,
+      yardId,
+      docQuantity,
+      upload_doc_time,
+      diff_upload_doc_arrival,
+      diff_time_to_appointment,
+      diff_time_to_arrival,
+      wait_time_in_queue,
+      wait_time_yard_entry,
+      wait_time_begin_op,
+      service_time_operation,
+      wait_time_inspection,
+      leave_yard
+    )
+}
 
-hist(as.numeric(timeResumeREST$wait_time_yard_entry))
-boxplot(as.numeric(timeResumeREST$wait_time_yard_entry))
-hist(as.numeric(timeResumeREST$wait_time_begin_op))
-boxplot(as.numeric(timeResumeREST$wait_time_begin_op))
-hist(as.numeric(timeResumeREST$service_time_operation))
-boxplot(as.numeric(timeResumeREST$service_time_operation))
-hist(as.numeric(timeResumeREST$leave_yard))
-boxplot(as.numeric(timeResumeREST$leave_yard))
-hist(as.numeric(timeResumeREST$upload_doc_time))
-boxplot(as.numeric(timeResumeREST$upload_doc_time))
+timeResumeREPO <- {timeData %>% filter(operationType == "REPO", yardId != "3", is.na(dateTimeStatus2) == FALSE) %>%
+  mutate(
+    operation_type = operationType,
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
+    diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins"),
+    diff_time_to_arrival = difftime(dateTimeStatus2, appointment_dateTime, units = "mins"),
+    wait_time_in_queue = difftime(approvedInYardDateTime, dateTimeStatus2, units = "mins"),
+    wait_time_yard_entry = difftime(yardEntryAuthorizedDateTime, approvedInYardDateTime, units = "mins"),
+    wait_time_begin_op = difftime(dateTimeStatus3, yardEntryAuthorizedDateTime, units = "mins"),
+    service_time_operation = difftime(operationContainerTime, dateTimeStatus3, units = "mins"),
+    wait_time_inspection = difftime(load_containerInspectedDateTime, operationContainerTime, units = "mins"),
+    leave_yard = difftime(dateTimeStatus4, load_containerInspectedDateTime, units = "mins")
+  ) %>%
+    select(
+      operation_type,
+      trucker_phone,
+      transporter_name,
+      linerCode,
+      containerId,
+      c_type,
+      c_size,
+      yardId,
+      docQuantity,
+      upload_doc_time,
+      diff_upload_doc_arrival,
+      diff_time_to_appointment,
+      diff_time_to_arrival,
+      wait_time_in_queue,
+      wait_time_yard_entry,
+      wait_time_begin_op,
+      service_time_operation,
+      wait_time_inspection,
+      leave_yard
+    )
+}
 
+timeResumeCancelledIMPO <- {timeData %>% filter(operationType == "IMPO", yardId != "3", is.na(dateTimeStatus2)) %>%
+    mutate(
+      upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+      diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
+      diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins")
+    ) %>%
+    select(
+      id,
+      trucker_phone,
+      transporter_name,
+      linerCode,
+      containerId,
+      c_type,
+      c_size,
+      yardId,
+      docQuantity,
+      upload_doc_time,
+      diff_upload_doc_arrival,
+      diff_time_to_appointment
+    )
+}
 
+timeResumeCancelledEXPO <- {timeData %>% filter(operationType == "EXPO", yardId != "3", is.na(dateTimeStatus2)) %>%
+  mutate(
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
+    diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins")
+  ) %>%
+    select(
+      id,
+      trucker_phone,
+      transporter_name,
+      linerCode,
+      containerId,
+      c_type,
+      c_size,
+      yardId,
+      docQuantity,
+      upload_doc_time,
+      diff_upload_doc_arrival,
+      diff_time_to_appointment
+    )
+}
+
+timeResumeCancelledREPO <- {timeData %>% filter(operationType == "REPO", yardId != "3", is.na(dateTimeStatus2)) %>%
+  mutate(
+    upload_doc_time = difftime(lastDocDate, appointmentRequested_dateTime, units = "mins"),
+    diff_upload_doc_arrival = difftime(dateTimeStatus2, lastDocDate, units = "mins"),
+    diff_time_to_appointment = difftime(appointment_dateTime, appointmentRequested_dateTime, units = "mins")
+  ) %>%
+    select(
+      id,
+      trucker_phone,
+      transporter_name,
+      linerCode,
+      containerId,
+      c_type,
+      c_size,
+      yardId,
+      docQuantity,
+      upload_doc_time,
+      diff_upload_doc_arrival,
+      diff_time_to_appointment
+    )
+}
+
+timeResumeIMPOErrors <- timeResumeIMPO %>% filter(wait_time_inspection < 0)
+
+temp <- 100
+timeResumeIMPOErrors[temp,]
+timeData %>% filter(id == timeResumeIMPOErrors[temp,1])
+#hist(as.numeric(timeResumeIMPO$wait_time_inspection))
+#boxplot(as.numeric(timeResumeIMPO$wait_time_inspection))
+# hist(as.numeric(timeResumeIMPO$wait_time_yard_entry))
+# boxplot(as.numeric(timeResumeIMPO$wait_time_yard_entry))
+# hist(as.numeric(timeResumeIMPO$wait_time_begin_op))
+# boxplot(as.numeric(timeResumeIMPO$wait_time_begin_op))
+# hist(as.numeric(timeResumeIMPO$service_time_operation))
+# boxplot(as.numeric(timeResumeIMPO$service_time_operation))
+# hist(as.numeric(timeResumeIMPO$leave_yard))
+# boxplot(as.numeric(timeResumeIMPO$leave_yard))
+# hist(as.numeric(timeResumeIMPO$upload_doc_time))
+# boxplot(as.numeric(timeResumeIMPO$upload_doc_time))
+
+# hist(as.numeric(timeResumeREST$wait_time_yard_entry))
+# boxplot(as.numeric(timeResumeREST$wait_time_yard_entry))
+# hist(as.numeric(timeResumeREST$wait_time_begin_op))
+# boxplot(as.numeric(timeResumeREST$wait_time_begin_op))
+# hist(as.numeric(timeResumeREST$service_time_operation))
+# boxplot(as.numeric(timeResumeREST$service_time_operation))
+# hist(as.numeric(timeResumeREST$leave_yard))
+# boxplot(as.numeric(timeResumeREST$leave_yard))
+# hist(as.numeric(timeResumeREST$upload_doc_time))
+# boxplot(as.numeric(timeResumeREST$upload_doc_time))
 
 # Review avgs -------------------------------------------------------------
 resumeIMPO <- list()
