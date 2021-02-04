@@ -51,20 +51,42 @@ def get_plate(image_path, Dmax=608, Dmin=256):
     return vehicle, LpImg, cor
 
 
-test_image_path = "test1/IMG_3174.jpg"
-vehicle, LpImg, cor = get_plate(test_image_path)
-fig = plt.figure(figsize=(12, 6))
-grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
-fig.add_subplot(grid[0])
-plt.axis(False)
-plt.imshow(vehicle)
-grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
-fig.add_subplot(grid[1])
-plt.axis(False)
-plt.imshow(LpImg[0])
-plt.show()
+test_image_path = "test1/test2.jpeg"
 
-if (len(LpImg)):  # check if there is at least one license image
+vehicle, LpImg, cor = get_plate(test_image_path)
+
+
+# fig = plt.figure(figsize=(12, 6))
+# grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
+# fig.add_subplot(grid[0])
+# plt.axis(False)
+# plt.imshow(vehicle)
+# grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
+# fig.add_subplot(grid[1])
+# plt.axis(False)
+# plt.imshow(LpImg[0])
+# plt.show()
+
+def shadow_remove(img):
+    img = (img * 255).astype(np.uint8)
+    rgb_planes = cv2.split(img)
+    result_norm_planes = []
+    for plane in rgb_planes:
+        dilated_img = cv2.dilate(plane, np.ones((7, 7), np.uint8))
+        bg_img = cv2.medianBlur(dilated_img, 21)
+        diff_img = 255 - cv2.absdiff(plane, bg_img)
+        norm_img = cv2.normalize(diff_img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+        result_norm_planes.append(norm_img)
+    shadowremov = cv2.merge(result_norm_planes)
+    return shadowremov
+
+
+# Shadow removal
+shad = shadow_remove(LpImg[0])
+
+cv2.imwrite('after_shadow_remove1.jpg', shad)
+
+if len(LpImg):  # check if there is at least one license image
     # Scales, calculates absolute values, and converts the result to 8-bit.
     plate_image = cv2.convertScaleAbs(LpImg[0], alpha=(255.0))
     cv2.imwrite("normal.jpg", plate_image)
@@ -83,23 +105,24 @@ if (len(LpImg)):  # check if there is at least one license image
     thre_mor = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel3)
     cv2.imwrite("kernel.jpg", thre_mor)
 
+
 # visualize results
-fig = plt.figure(figsize=(12, 7))
-plt.rcParams.update({"font.size": 18})
-grid = gridspec.GridSpec(ncols=2, nrows=3, figure=fig)
-plot_image = [plate_image, gray, blur, binary, thre_mor]
-plot_name = ["plate_image", "gray", "blur", "binary", "dilation"]
+# fig = plt.figure(figsize=(12, 7))
+# plt.rcParams.update({"font.size": 18})
+# grid = gridspec.GridSpec(ncols=2, nrows=3, figure=fig)
+# plot_image = [plate_image, gray, blur, binary, thre_mor]
+# plot_name = ["plate_image", "gray", "blur", "binary", "dilation"]
 
-for i in range(len(plot_image)):
-    fig.add_subplot(grid[i])
-    plt.axis(False)
-    plt.title(plot_name[i])
-    if i == 0:
-        plt.imshow(plot_image[i])
-    else:
-        plt.imshow(plot_image[i], cmap="gray")
+# for i in range(len(plot_image)):
+# fig.add_subplot(grid[i])
+# plt.axis(False)
+# plt.title(plot_name[i])
+# if i == 0:
+# plt.imshow(plot_image[i])
+# else:
+# plt.imshow(plot_image[i], cmap="gray")
 
-plt.show()
+# plt.show()
 
 
 def sort_contours(cnts, reverse=False):
@@ -120,14 +143,18 @@ crop_characters = []
 
 # define standard width and height of character
 digit_w, digit_h = 30, 60
+counter = 0
 
 for c in sort_contours(cont):
     (x, y, w, h) = cv2.boundingRect(c)
     ratio = h / w
-    #if 1 <= ratio <= 1:  # Only select contour with defined ratio
-    if h / plate_image.shape[0] >= 0.5:  # Select contour which has the height larger than 50% of the plate
-        if h / plate_image.shape[0] <= 0.7:
+    print(str(counter) + ", Height " + str(h) + ", Width " + str(w) + ", Ratio " + str(h / w))
+    if 3 >= ratio >= 0.8:  # Only select contour with defined ratio
+        if h / plate_image.shape[0] >= 0.4:  # Select contour which has the height larger than 50% of the plate
+            # if h / plate_image.shape[0] <= 0.7:
+            # if w / plate_image.shape[0] <= 0.5:
             # Draw bounding box arroung digit number
+            print(str(counter) + ", Height " + str(h) + ", Width " + str(w) + ", Ratio " + str(h / w))
             cv2.rectangle(test_roi, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
             # Sperate number and gibe prediction
@@ -135,6 +162,7 @@ for c in sort_contours(cont):
             curr_num = cv2.resize(curr_num, dsize=(digit_w, digit_h))
             _, curr_num = cv2.threshold(curr_num, 220, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             crop_characters.append(curr_num)
+    counter += 1
 
 print("Detect {} letters...".format(len(crop_characters)))
 fig = plt.figure(figsize=(10, 6))
@@ -150,4 +178,3 @@ for i in range(len(crop_characters)):
     plt.axis(False)
     plt.imshow(crop_characters[i], cmap="gray")
 plt.show()
-
