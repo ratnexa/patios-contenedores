@@ -51,48 +51,52 @@ def get_plate(image_path, Dmax=608, Dmin=256):
     return vehicle, LpImg, cor
 
 
-test_image_path = "test1/test2.jpeg"
-
-vehicle, LpImg, cor = get_plate(test_image_path)
-
-
-# fig = plt.figure(figsize=(12, 6))
-# grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
-# fig.add_subplot(grid[0])
-# plt.axis(False)
-# plt.imshow(vehicle)
-# grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
-# fig.add_subplot(grid[1])
-# plt.axis(False)
-# plt.imshow(LpImg[0])
-# plt.show()
-
 def shadow_remove(img):
     img = (img * 255).astype(np.uint8)
     rgb_planes = cv2.split(img)
+    result_planes = []
     result_norm_planes = []
     for plane in rgb_planes:
         dilated_img = cv2.dilate(plane, np.ones((7, 7), np.uint8))
         bg_img = cv2.medianBlur(dilated_img, 21)
         diff_img = 255 - cv2.absdiff(plane, bg_img)
         norm_img = cv2.normalize(diff_img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+        result_planes.append(diff_img)
         result_norm_planes.append(norm_img)
-    shadowremov = cv2.merge(result_norm_planes)
-    return shadowremov
+    result = cv2.merge(result_planes)
+    result_norm = cv2.merge(result_norm_planes)
+    cv2.imwrite('shadows_out.png', result)
+    cv2.imwrite('shadows_out_norm.png', result_norm)
+    return result_norm
 
 
-# Shadow removal
-shad = shadow_remove(LpImg[0])
+test_image_path = "test1/test8.jpeg"
 
-cv2.imwrite('after_shadow_remove1.jpg', shad)
+vehicle, LpImg, cor = get_plate(test_image_path)
+
+fig = plt.figure(figsize=(12, 6))
+grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
+fig.add_subplot(grid[0])
+plt.axis(False)
+plt.imshow(vehicle)
+grid = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
+fig.add_subplot(grid[1])
+plt.axis(False)
+plt.imshow(LpImg[0])
+plt.show()
 
 if len(LpImg):  # check if there is at least one license image
+
+    # Shadow removal
+    shad = shadow_remove(LpImg[0])
+    cv2.imwrite('after_shadow_remove1.jpg', shad)
+
     # Scales, calculates absolute values, and converts the result to 8-bit.
-    plate_image = cv2.convertScaleAbs(LpImg[0], alpha=(255.0))
+    plate_image = cv2.convertScaleAbs(LpImg[0], alpha=255.0)
     cv2.imwrite("normal.jpg", plate_image)
 
     # convert to grayscale and blur the image
-    gray = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(shad, cv2.COLOR_BGR2GRAY)
     cv2.imwrite("graytest.jpg", gray)
     blur = cv2.GaussianBlur(gray, (7, 7), 0)
 
@@ -105,24 +109,23 @@ if len(LpImg):  # check if there is at least one license image
     thre_mor = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel3)
     cv2.imwrite("kernel.jpg", thre_mor)
 
-
 # visualize results
-# fig = plt.figure(figsize=(12, 7))
-# plt.rcParams.update({"font.size": 18})
-# grid = gridspec.GridSpec(ncols=2, nrows=3, figure=fig)
-# plot_image = [plate_image, gray, blur, binary, thre_mor]
-# plot_name = ["plate_image", "gray", "blur", "binary", "dilation"]
+fig = plt.figure(figsize=(12, 7))
+plt.rcParams.update({"font.size": 18})
+grid = gridspec.GridSpec(ncols=2, nrows=3, figure=fig)
+plot_image = [shad, plate_image, gray, blur, binary, thre_mor]
+plot_name = ["shad", "plate_image", "gray", "blur", "binary", "dilation"]
 
-# for i in range(len(plot_image)):
-# fig.add_subplot(grid[i])
-# plt.axis(False)
-# plt.title(plot_name[i])
-# if i == 0:
-# plt.imshow(plot_image[i])
-# else:
-# plt.imshow(plot_image[i], cmap="gray")
+for i in range(len(plot_image)):
+    fig.add_subplot(grid[i])
+    plt.axis(False)
+    plt.title(plot_name[i])
+    if i == 0:
+        plt.imshow(plot_image[i])
+    else:
+        plt.imshow(plot_image[i], cmap="gray")
 
-# plt.show()
+plt.show()
 
 
 def sort_contours(cnts, reverse=False):

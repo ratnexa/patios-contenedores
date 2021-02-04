@@ -117,12 +117,16 @@ model = create_model(lr=INIT_LR, decay=INIT_LR / EPOCHS, training=True)
 BATCH_SIZE = 64
 
 my_checkpointer = [
-                EarlyStopping(monitor='val_loss', patience=5, verbose=0),
-                ModelCheckpoint(filepath="License_character_recognition.h5", verbose=1, save_weights_only=True)
-                ]
+    EarlyStopping(monitor='val_loss', patience=5, verbose=0),
+    ModelCheckpoint(filepath="License_character_recognition.h5", verbose=1, save_weights_only=True)
+]
 
 result = model.fit(image_gen.flow(trainX, trainY, batch_size=BATCH_SIZE),
                    steps_per_epoch=len(trainX) // BATCH_SIZE,
                    validation_data=(testX, testY),
                    validation_steps=len(testX) // BATCH_SIZE,
                    epochs=EPOCHS, callbacks=my_checkpointer)
+
+model_json = model.to_json()
+with open("MobileNets_character_recognition.json", "w") as json_file:
+    json_file.write(model_json)
