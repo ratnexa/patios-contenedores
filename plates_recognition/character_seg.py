@@ -92,7 +92,7 @@ def shadow_remove(img):
     return result_norm
 
 
-test_image_path = "test1/foto4.jpg"
+test_image_path = "test1/testlol.jpg"
 
 vehicle, LpImg, cor = get_plate(test_image_path)
 
