@@ -70,7 +70,7 @@ def shadow_remove(img):
     return result_norm
 
 
-test_image_path = "test1/test8.jpeg"
+test_image_path = "test1/test10.jpeg"
 
 vehicle, LpImg, cor = get_plate(test_image_path)
 
@@ -105,7 +105,7 @@ if len(LpImg):  # check if there is at least one license image
                            cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
     cv2.imwrite("binarytest.jpg", binary)
 
-    kernel3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    kernel3 = cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4))
     thre_mor = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel3)
     cv2.imwrite("kernel.jpg", thre_mor)
 
