@@ -38,8 +38,12 @@ inner join contenedores_tipos ct on ct.codigo = c2.cType
 where 
 	#yo.appointment_dateTime >= DATE_SUB(DATE(NOW()), interval 5 month)
 	yo.cancelled_appointment != 1
-group by yo.id"
+	and yo.dateTimeStatus2 is not null
+group by yo.id
+order by yo.appointment_dateTime DESC"
 })
+
+dbInv <- dbInv %>% group_by(container_id, operationType) %>% mutate(count=row_number()) %>% filter(count == 1)
 
 selectedYardId <- 1
 baseInv <- dbInv %>% filter(yardId == selectedYardId) %>% 
