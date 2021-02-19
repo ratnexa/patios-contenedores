@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 import datetime
+import pandas as pd
 
 
 def load_model(path):
@@ -171,6 +172,9 @@ if not cap.isOpened():
 counter = 0
 LpImg = []
 t1 = datetime.datetime.now()
+bdDataFrame = pd.DataFrame({"plate": [],
+        "register_date": [],
+        "camera_id": []})
 while True:
     ret, frame = cap.read()
     counter += 1
@@ -191,10 +195,20 @@ while True:
         if len(LpImg) > 0:
             plateString, characters = predict_plate_rmuv(LpImg)
             print(plateString)
+            t2 = datetime.datetime.now()
+            formatDate = t2.strftime("%Y-%m-%d %H:%M:%S")
+            newRow = pd.DataFrame({
+                "plate": [plateString],
+                "register_date": [formatDate],
+                "camera_id": [1]
+            })
+
+            bdDataFrame = bdDataFrame.append(newRow)
             cv2.imshow("Frame", LpImg[0])
 
 
-    t2 = datetime.datetime.now()
+
+
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
@@ -202,9 +216,11 @@ while True:
     #    break
 
 
-
+pd.DataFrame.to_csv(bdDataFrame, "bd_test.csv", sep = ";", index = False)
 cap.release()
 cv2.destroyAllWindows()
+
+
 
 delta = t2 - t1
 print(delta.total_seconds())
