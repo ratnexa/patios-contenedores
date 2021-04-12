@@ -74,10 +74,10 @@ def predict_from_model(image, model, labels):
 
 
 
-img = cv2.imread('test1/IMG_3172.jpg')
-vehicle, LpImg, cor = get_plate(img)
-plt.imshow(LpImg[0])
-plt.show()
+#img = cv2.imread('test1/IMG_3172.jpg')
+#vehicle, LpImg, cor = get_plate(img)
+#plt.imshow(LpImg[0])
+#plt.show()
 
 def predict_plate_rmuv(LpImg):
     if len(LpImg):  # check if there is at least one license image
@@ -111,57 +111,18 @@ def predict_plate_rmuv(LpImg):
 
     bilateralFilter = cv2.bilateralFilter(gray, 11, 17, 17)
     edged = cv2.Canny(bilateralFilter, 30, 200)  # Edge detection
-    plt.imshow(edged)
-    plt.show()
+    #plt.imshow(edged)
+    #plt.show()
 
-    reader = easyocr.Reader(['en'])
-    result = reader.readtext(blur_shad)
-    result
+    try:
+        result = reader.readtext(blur_shad)
+        final_plate = result[0][1]
+    except Exception as e:
+        final_plate = ''
 
-    image_type = [binary_shad, binary]
-    final_crop_characters = []
-    sizes = []
-    detected_letters = 0
-    for k in image_type:
+    final_string = final_plate
 
-        cont, _ = cv2.findContours(k, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # creat a copy version "test_roi" of plat_image to draw bounding box
-        test_roi = plate_image.copy()
-
-        # Initialize a list which will be used to append charater image
-        crop_characters = []
-
-        # define standard width and height of character
-        digit_w, digit_h = 30, 60
-        counter = 0
-
-        for c in sort_contours(cont):
-            (x, y, w, h) = cv2.boundingRect(c)
-            ratio = h / w
-            if 3 >= ratio >= 0.8:  # Only select contour with defined ratio
-                if h / plate_image.shape[0] >= 0.4:  # Select contour which has the height larger than 50% of the plate
-                    if w / plate_image.shape[1] <= 0.2:
-                        cv2.rectangle(test_roi, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-                        # Sperate number and give prediction
-                        curr_num = thre_mor[y:y + h, x:x + w]
-                        curr_num = cv2.resize(curr_num, dsize=(digit_w, digit_h))
-                        _, curr_num = cv2.threshold(curr_num, 220, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                        crop_characters.append(curr_num)
-            counter += 1
-
-        #print("Detect {} letters...".format(len(crop_characters)))
-        if detected_letters < len(crop_characters):
-            detected_letters = len(crop_characters)
-            final_crop_characters = crop_characters
-
-    len(final_crop_characters)
-    crop_characters = final_crop_characters
-    final_string = ''
-    for i, character in enumerate(crop_characters):
-        title = np.array2string(predict_from_model(character, model, labels))
-        final_string += title.strip("'[]")
-    return(final_string, crop_characters)
+    return(final_string)
 
 json_file = open('MobileNets_character_recognition.json', 'r')
 loaded_model_json = json_file.read()
@@ -190,6 +151,7 @@ counter = 0
 LpImg = []
 t1 = datetime.datetime.now()
 bdDataFrame = pd.read_csv("bd_test.csv", sep = ";")
+reader = easyocr.Reader(['en'])
 while True:
     ret, frame = cap.read()
     counter += 1
@@ -200,7 +162,7 @@ while True:
     cv2.imshow("Frame", frame)
 
     #cv2.imwrite('frame.jpg', frame)
-    if (counter % 30) == 0:
+    if (counter % 5) == 0:
         try:
             vehicle, LpImg, cor = get_plate(frame)
 
@@ -208,7 +170,7 @@ while True:
             LpImg = []
 
         if len(LpImg) > 0:
-            plateString, characters = predict_plate_rmuv(LpImg)
+            plateString = predict_plate_rmuv(LpImg)
             print(plateString)
             t2 = datetime.datetime.now()
             formatDate = t2.strftime("%Y-%m-%d %H:%M:%S")
@@ -222,10 +184,7 @@ while True:
 
                 bdDataFrame = bdDataFrame.append(newRow)
                 pd.DataFrame.to_csv(bdDataFrame, "bd_test.csv", sep=";", index=False)
-            cv2.imshow("Frame", LpImg[0])
-
-
-
+            #cv2.imshow("Frame", LpImg[0])
 
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
